@@ -1,6 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Instrument_Serif, Inter } from "next/font/google";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
   Command,
   CommandEmpty,
@@ -10,43 +13,95 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { getCities } from "@/lib/city";
+import {
+  LockKey,
+  MapPinLine,
+  HeartStraight,
+  PushPin,
+  ArrowRight,
+  Sparkle,
+} from "@phosphor-icons/react";
+
+const display = Instrument_Serif({
+  subsets: ["latin"],
+  weight: "400",
+  style: ["normal", "italic"],
+  variable: "--font-display",
+});
+const sans = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 type City = {
   id: number;
   name: string;
 };
 
+// Each confession now carries the emoji that reads it back to you —
+// the one-glance tell of what kind of secret it is.
 const FLOATING_CONFESSIONS = [
-  "😭 I told my boss I had a family emergency. I was watching Netflix.",
-  "💀 I've been faking being busy for 3 years straight.",
-  "🤫 I googled my own name hoping someone said something nice.",
-  "😂 I laugh at my teacher's jokes. They're not funny. At all.",
-  "🥲 I pretend to be confident online. Offline I'm a mess.",
-  "💅 I dress up just to sit alone in my room and feel good.",
-  "😳 I memorized her schedule just to accidentally run into her.",
-  "🎭 I have two personalities. My family knows neither.",
-  "🤡 I still sleep with the lights on. I'm 22.",
-  "💔 I said I was over it. I replay the conversation daily.",
-  "😴 I skipped 40 classes and somehow passed. Don't ask how.",
-  "🔥 I quit my job in my head every single day.",
-  "👀 I check my ex's location. We ended 2 years ago.",
-  "😬 I've been 'almost done' with this project for 6 months.",
-  "🙃 I told everyone I was thriving. I was barely surviving.",
+  { emoji: "🍿", text: "I told my boss I had a family emergency. I was watching Netflix." },
+  { emoji: "💼", text: "I've been faking being busy for 3 years straight." },
+  { emoji: "🔍", text: "I googled my own name hoping someone said something nice." },
+  { emoji: "😅", text: "I laugh at my teacher's jokes. They're not funny. At all." },
+  { emoji: "🎭", text: "I pretend to be confident online. Offline I'm a mess." },
+  { emoji: "👗", text: "I dress up just to sit alone in my room and feel good." },
+  { emoji: "📅", text: "I memorized her schedule just to accidentally run into her." },
+  { emoji: "💡", text: "I still sleep with the lights on. I'm 22." },
 ];
 
-function FloatingCard({
+// A second, denser set used for the mobile ticker + trending strip —
+// short enough to sit comfortably in one line.
+const TICKER_CONFESSIONS = [
+  { emoji: "🍿", text: "Told my boss it was a family emergency. It was Netflix." },
+  { emoji: "🔍", text: "Googled my own name hoping for something nice." },
+  { emoji: "📅", text: "Memorized her schedule to 'accidentally' run into her." },
+  { emoji: "💡", text: "Still sleep with the lights on. I'm 22." },
+  { emoji: "🎭", text: "Confident online. A mess everywhere else." },
+  { emoji: "👗", text: "Dress up just to sit alone in my room." },
+];
+
+function FloatingNote({
+  emoji,
   text,
   style,
 }: {
+  emoji: string;
   text: string;
-  style: React.CSSProperties;
+  style: React.CSSProperties & { "--rot"?: string };
 }) {
   return (
     <div
-      className="hidden md:block absolute bg-neutral-900/70 border border-neutral-800/60 rounded-2xl p-5 max-w-[240px] backdrop-blur-sm pointer-events-none select-none"
-      style={style}
+      className="floating-card hidden lg:flex absolute w-[230px] flex-col gap-3 rounded-xl border border-white/[0.07] bg-white/[0.03] p-4 backdrop-blur-md pointer-events-none select-none shadow-[0_20px_45px_-20px_rgba(0,0,0,0.65)] transition-transform duration-500 hover:!rotate-0"
+      style={{ transform: `rotate(${style["--rot"] ?? "0deg"})`, ...style }}
+      data-opacity={style.opacity ?? 0.7}
     >
-      <p className="text-neutral-300 text-sm leading-relaxed">{text}</p>
+      <PushPin
+        weight="fill"
+        className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-pink-500/70"
+        size={16}
+      />
+      <div className="flex items-start gap-2.5">
+        <span className="text-base leading-none mt-0.5">{emoji}</span>
+        <p className="text-neutral-300 text-[13px] leading-relaxed">{text}</p>
+      </div>
+    </div>
+  );
+}
+
+function TrendingTicker() {
+  const track = [...TICKER_CONFESSIONS, ...TICKER_CONFESSIONS];
+  return (
+    <div className="ticker-mask relative w-full overflow-hidden py-3 border-y border-white/[0.06] bg-white/[0.015]">
+      <div className="ticker-track flex items-center gap-3 w-max">
+        {track.map((c, i) => (
+          <span
+            key={i}
+            className="flex items-center gap-2 whitespace-nowrap rounded-full border border-white/[0.06] bg-white/[0.03] px-4 py-1.5 text-[12.5px] text-neutral-400"
+          >
+            <span className="text-sm leading-none">{c.emoji}</span>
+            {c.text}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
@@ -55,6 +110,7 @@ export default function Page() {
   const router = useRouter();
   const [cities, setCities] = useState<City[]>([]);
   const [loading, setLoading] = useState(true);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     async function loadCities() {
@@ -65,114 +121,157 @@ export default function Page() {
     loadCities();
   }, []);
 
+  useEffect(() => {
+    gsap.registerPlugin(ScrollTrigger);
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+      tl.fromTo(
+        ".hero-eyebrow",
+        { opacity: 0, y: 10 },
+        { opacity: 1, y: 0, duration: 0.5 },
+      )
+        .fromTo(
+          ".hero-title",
+          { opacity: 0, y: 22 },
+          { opacity: 1, y: 0, duration: 0.8 },
+          "-=0.25",
+        )
+        .fromTo(
+          ".hero-sub",
+          { opacity: 0, y: 14 },
+          { opacity: 1, y: 0, duration: 0.6 },
+          "-=0.45",
+        )
+        .fromTo(
+          ".hero-search",
+          { opacity: 0, y: 14 },
+          { opacity: 1, y: 0, duration: 0.6 },
+          "-=0.35",
+        )
+        .fromTo(
+          ".floating-card",
+          { opacity: 0, scale: 0.92, y: 10 },
+          {
+            opacity: (_i, el) => parseFloat(el.dataset.opacity || "0.7"),
+            scale: 1,
+            y: 0,
+            duration: 0.9,
+            stagger: 0.08,
+          },
+          "-=0.3",
+        );
+
+      gsap.utils.toArray<HTMLElement>(".feature-card").forEach((el, i) => {
+        gsap.fromTo(
+          el,
+          { opacity: 0, y: 28 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.6,
+            delay: i * 0.06,
+            ease: "power2.out",
+            scrollTrigger: { trigger: el, start: "top 85%" },
+          },
+        );
+      });
+
+      gsap.utils.toArray<HTMLElement>(".reveal-up").forEach((el) => {
+        gsap.fromTo(
+          el,
+          { opacity: 0, y: 24 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.6,
+            ease: "power2.out",
+            scrollTrigger: { trigger: el, start: "top 88%" },
+          },
+        );
+      });
+    }, rootRef);
+
+    return () => ctx.revert();
+  }, []);
+
   const floatingCards = [
-    {
-      text: FLOATING_CONFESSIONS[0],
-      style: {
-        top: "6%",
-        left: "2%",
-        transform: "rotate(-3deg)",
-        opacity: 0.85,
-      },
-    },
-    {
-      text: FLOATING_CONFESSIONS[1],
-      style: {
-        top: "12%",
-        right: "3%",
-        transform: "rotate(2deg)",
-        opacity: 0.75,
-      },
-    },
-    {
-      text: FLOATING_CONFESSIONS[2],
-      style: {
-        top: "38%",
-        left: "1%",
-        transform: "rotate(-2deg)",
-        opacity: 0.65,
-      },
-    },
-    {
-      text: FLOATING_CONFESSIONS[3],
-      style: {
-        top: "52%",
-        right: "2%",
-        transform: "rotate(3deg)",
-        opacity: 0.75,
-      },
-    },
-    {
-      text: FLOATING_CONFESSIONS[4],
-      style: {
-        bottom: "18%",
-        left: "3%",
-        transform: "rotate(2deg)",
-        opacity: 0.65,
-      },
-    },
-    {
-      text: FLOATING_CONFESSIONS[5],
-      style: {
-        bottom: "8%",
-        right: "2%",
-        transform: "rotate(-2deg)",
-        opacity: 0.8,
-      },
-    },
-    {
-      text: FLOATING_CONFESSIONS[6],
-      style: {
-        top: "70%",
-        left: "1%",
-        transform: "rotate(-1deg)",
-        opacity: 0.55,
-      },
-    },
-    {
-      text: FLOATING_CONFESSIONS[7],
-      style: {
-        top: "28%",
-        right: "2%",
-        transform: "rotate(-3deg)",
-        opacity: 0.6,
-      },
-    },
+    { c: FLOATING_CONFESSIONS[0], style: { top: "8%", left: "3%", opacity: 0.75, "--rot": "-3deg" } },
+    { c: FLOATING_CONFESSIONS[1], style: { top: "14%", right: "4%", opacity: 0.6, "--rot": "2deg" } },
+    { c: FLOATING_CONFESSIONS[2], style: { top: "42%", left: "1%", opacity: 0.5, "--rot": "1.5deg" } },
+    { c: FLOATING_CONFESSIONS[3], style: { top: "54%", right: "2%", opacity: 0.65, "--rot": "-2deg" } },
+    { c: FLOATING_CONFESSIONS[4], style: { bottom: "20%", left: "3%", opacity: 0.5, "--rot": "2.5deg" } },
+    { c: FLOATING_CONFESSIONS[5], style: { bottom: "10%", right: "3%", opacity: 0.7, "--rot": "-1.5deg" } },
+    { c: FLOATING_CONFESSIONS[6], style: { top: "72%", left: "1%", opacity: 0.45, "--rot": "-2.5deg" } },
+    { c: FLOATING_CONFESSIONS[7], style: { top: "30%", right: "1%", opacity: 0.5, "--rot": "3deg" } },
   ];
 
   return (
-    <main className="relative bg-black text-white flex flex-col items-center px-4 overflow-hidden">
-      {/* Floating background cards - desktop only */}
+    <main
+      ref={rootRef}
+      className={`${display.variable} ${sans.variable} relative bg-[#08080a] text-white flex flex-col items-center px-4 overflow-hidden font-sans`}
+    >
+      {/* Grain */}
+      <div
+        className="fixed inset-0 pointer-events-none z-0 opacity-[0.05] mix-blend-overlay"
+        style={{
+          backgroundImage:
+            "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
+        }}
+      />
+      {/* Dot grid */}
+      <div
+        className="fixed inset-0 pointer-events-none z-0"
+        style={{
+          backgroundImage: "radial-gradient(circle, #ffffff12 1px, transparent 1px)",
+          backgroundSize: "28px 28px",
+        }}
+      />
+      {/* Pink glow */}
+      <div className="absolute top-24 w-[640px] h-[640px] bg-pink-500/[0.08] rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-[420px] right-0 w-[420px] h-[420px] bg-fuchsia-500/[0.05] rounded-full blur-[110px] pointer-events-none" />
+
+      {/* Floating background notes - desktop only */}
       {floatingCards.map((card, i) => (
-        <FloatingCard key={i} text={card.text} style={card.style} />
+        <FloatingNote key={i} emoji={card.c.emoji} text={card.c.text} style={card.style as any} />
       ))}
 
-      {/* Pink glow */}
-      <div className="absolute top-1/3 w-[600px] h-[600px] bg-pink-500/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Hero */}
+      <div className="relative z-10 flex flex-col items-center w-full min-h-screen justify-center max-w-2xl pt-24 pb-10">
+        <span className="hero-eyebrow inline-flex items-center gap-2 text-[11px] tracking-[0.25em] uppercase text-pink-400/70 font-medium mb-5 border border-pink-500/15 bg-pink-500/[0.06] rounded-full px-3.5 py-1.5">
+          <Sparkle weight="fill" size={11} />
+          A confession booth, for your city
+          <span className="text-neutral-500 border-l border-pink-500/20 pl-2 ml-0.5 tracking-normal normal-case">
+            MVP v1
+          </span>
+        </span>
 
-      {/* Hero Section */}
-      <div className="relative z-10 flex flex-col items-center w-full min-h-screen justify-center">
-        {/* Title */}
-        <div className="text-center mb-8">
-          <h1 className="text-6xl font-bold tracking-tight">
-            Confess<span className="text-pink-500">It</span>Up
-          </h1>
-          <p className="text-neutral-400 mt-3 text-lg">
-            Secrets your city never said out loud.
-          </p>
-        </div>
+        <h1 className="hero-title text-center text-5xl sm:text-6xl md:text-7xl font-medium tracking-tight leading-none">
+          Confess
+          <span
+            className="italic text-pink-500 mx-[0.02em]"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            It
+          </span>
+          Up
+        </h1>
+
+        <p className="hero-sub text-neutral-400 mt-5 text-lg text-center max-w-md">
+          The things your neighbours would never say to your face —
+          <span className="text-neutral-200"> sorted by zip code, not by name.</span>
+        </p>
 
         {/* Command Search */}
-        <div className="w-full max-w-md">
-          <Command className="rounded-2xl border border-neutral-700 bg-neutral-950 shadow-xl shadow-pink-500/5">
+        <div className="hero-search w-full max-w-md mt-10">
+          <Command className="rounded-2xl border border-white/10 bg-neutral-950/80 shadow-[0_30px_60px_-20px_rgba(236,72,153,0.15)] backdrop-blur-md">
             <CommandInput
-              placeholder="Search your city..."
+              placeholder="Find your city — e.g. Austin, Toronto, Manila…"
               className="text-white placeholder:text-neutral-500 text-base py-3"
             />
-            <CommandList className="bg-neutral-950">
+            <CommandList className="bg-transparent">
               {loading && (
                 <CommandEmpty className="text-neutral-500">
-                  Loading cities...
+                  Loading cities…
                 </CommandEmpty>
               )}
               {!loading && cities.length === 0 && (
@@ -193,9 +292,14 @@ export default function Page() {
                         `/${city.name.toLowerCase().replace(/\s+/g, "-")}`,
                       )
                     }
-                    className="text-white hover:bg-pink-500/20 data-[selected=true]:bg-pink-500/20 data-[selected=true]:text-pink-400 cursor-pointer rounded-xl mx-1 my-0.5 transition-colors"
+                    className="text-white hover:bg-pink-500/15 data-[selected=true]:bg-pink-500/15 data-[selected=true]:text-pink-400 cursor-pointer rounded-xl mx-1 my-0.5 transition-colors group"
                   >
-                    {city.name}
+                    <span>{city.name}</span>
+                    <ArrowRight
+                      weight="bold"
+                      size={14}
+                      className="ml-auto opacity-0 -translate-x-1 group-hover:opacity-60 group-hover:translate-x-0 transition-all"
+                    />
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -204,80 +308,275 @@ export default function Page() {
         </div>
       </div>
 
+      {/* Trending ticker - visible on all breakpoints, doubles as mobile confessions preview */}
+      <div className="reveal-up relative z-10 w-full max-w-5xl mb-20">
+        <TrendingTicker />
+      </div>
+
       {/* Feature Cards Section */}
-      <div className="relative z-10 w-full max-w-5xl px-4 pb-20">
-        <h2 className="text-center text-2xl font-bold text-white mb-10">
-          Why <span className="text-pink-500">ConfessItUp?</span>
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-neutral-900 border border-neutral-800 hover:border-pink-500/40 transition-all rounded-2xl p-8 flex flex-col gap-5">
-            <div className="w-14 h-14 bg-pink-500/10 border border-pink-500/20 rounded-2xl flex items-center justify-center text-3xl">
-              🤫
+      <div className="relative z-10 w-full max-w-5xl px-4 pb-24">
+        <div className="text-center mb-12">
+          <span className="text-[11px] tracking-[0.25em] uppercase text-pink-400/70 font-medium">
+            Why people come back
+          </span>
+          <h2
+            className="italic text-3xl mt-3 text-neutral-100"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Nothing to hide behind, and nowhere to hide from.
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="feature-card bg-white/[0.02] border border-white/[0.06] hover:border-pink-500/30 hover:-translate-y-1 transition-all duration-300 rounded-2xl p-8 flex flex-col gap-5">
+            <div className="w-12 h-12 bg-pink-500/10 border border-pink-500/20 rounded-xl flex items-center justify-center text-pink-400">
+              <LockKey weight="duotone" size={24} />
             </div>
             <div>
-              <h3 className="text-white font-bold text-xl">Fully Anonymous</h3>
-              <p className="text-neutral-500 text-sm mt-3 leading-relaxed">
-                No account. No name. No trace. Just you and your confession —
-                the way it should be. Your secrets stay yours.
+              <h3 className="text-white font-semibold text-lg">Fully anonymous</h3>
+              <p className="text-neutral-500 text-sm mt-2.5 leading-relaxed">
+                No account, no name, no trace. Just you and what you needed
+                to say — your secrets stay yours.
               </p>
             </div>
           </div>
 
-          <div className="bg-neutral-900 border border-neutral-800 hover:border-pink-500/40 transition-all rounded-2xl p-8 flex flex-col gap-5">
-            <div className="w-14 h-14 bg-pink-500/10 border border-pink-500/20 rounded-2xl flex items-center justify-center text-3xl">
-              🏙️
+          <div className="feature-card bg-white/[0.02] border border-white/[0.06] hover:border-pink-500/30 hover:-translate-y-1 transition-all duration-300 rounded-2xl p-8 flex flex-col gap-5">
+            <div className="w-12 h-12 bg-pink-500/10 border border-pink-500/20 rounded-xl flex items-center justify-center text-pink-400">
+              <MapPinLine weight="duotone" size={24} />
             </div>
             <div>
-              <h3 className="text-white font-bold text-xl">Your City</h3>
-              <p className="text-neutral-500 text-sm mt-3 leading-relaxed">
-                Every city has secrets. Search yours and discover what your
-                neighbors are really thinking behind closed doors.
+              <h3 className="text-white font-semibold text-lg">Rooted in your city</h3>
+              <p className="text-neutral-500 text-sm mt-2.5 leading-relaxed">
+                Every city keeps its own secrets. Search yours and see what's
+                really happening behind closed doors nearby.
               </p>
             </div>
           </div>
 
-          <div className="bg-neutral-900 border border-neutral-800 hover:border-pink-500/40 transition-all rounded-2xl p-8 flex flex-col gap-5">
-            <div className="w-14 h-14 bg-pink-500/10 border border-pink-500/20 rounded-2xl flex items-center justify-center text-3xl">
-              ❤️
+          <div className="feature-card bg-white/[0.02] border border-white/[0.06] hover:border-pink-500/30 hover:-translate-y-1 transition-all duration-300 rounded-2xl p-8 flex flex-col gap-5">
+            <div className="w-12 h-12 bg-pink-500/10 border border-pink-500/20 rounded-xl flex items-center justify-center text-pink-400">
+              <HeartStraight weight="duotone" size={24} />
             </div>
             <div>
-              <h3 className="text-white font-bold text-xl">React & Relate</h3>
-              <p className="text-neutral-500 text-sm mt-3 leading-relaxed">
-                Like the confessions that hit too close to home. Because
-                sometimes knowing you&apos;re not alone is enough.
+              <h3 className="text-white font-semibold text-lg">React & relate</h3>
+              <p className="text-neutral-500 text-sm mt-2.5 leading-relaxed">
+                Like the ones that hit close to home — sometimes knowing
+                you're not the only one is enough.
               </p>
             </div>
           </div>
+        </div>
+
+        {/* How it works */}
+        <div className="reveal-up mt-24">
+          <div className="text-center mb-12">
+            <span className="text-[11px] tracking-[0.25em] uppercase text-pink-400/70 font-medium">
+              Three steps, no signup
+            </span>
+            <h2
+              className="italic text-3xl mt-3 text-neutral-100"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              From your feed to your city, in seconds.
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {[
+              {
+                step: "01",
+                title: "Find your city",
+                body: "Search the command bar above. If it's not listed yet, more cities are added every week.",
+              },
+              {
+                step: "02",
+                title: "Say what you mean",
+                body: "Write it, add an emoji if it needs one, and post — nothing is tied back to you, ever.",
+              },
+              {
+                step: "03",
+                title: "React & relate",
+                body: "Like the confessions that hit close, and watch the ones that resonate rise to the top.",
+              },
+            ].map((s) => (
+              <div
+                key={s.step}
+                className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-8 flex flex-col gap-3"
+              >
+                <span
+                  className="italic text-pink-500/60 text-xl"
+                  style={{ fontFamily: "var(--font-display)" }}
+                >
+                  {s.step}
+                </span>
+                <h3 className="text-white font-semibold text-lg">{s.title}</h3>
+                <p className="text-neutral-500 text-sm leading-relaxed">{s.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Confession spotlight */}
+        <div className="reveal-up mt-24 rounded-3xl border border-white/[0.06] bg-white/[0.015] p-10 sm:p-14 text-center flex flex-col items-center">
+          <span className="text-[11px] tracking-[0.25em] uppercase text-pink-400/70 font-medium mb-6">
+            Confession of the week
+          </span>
+          <p
+            className="italic text-2xl sm:text-3xl text-neutral-100 leading-snug max-w-xl"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            "😴 I set three alarms every night so it looks like I tried. I turn them all off in my sleep."
+          </p>
+          <div className="flex items-center gap-2 mt-6 text-neutral-500 text-xs">
+            <span className="border border-white/10 px-3 py-1 rounded-full">Lahore</span>
+            <span className="flex items-center gap-1.5">
+              <HeartStraight weight="fill" size={12} className="text-pink-500" />
+              1.2k
+            </span>
+          </div>
+        </div>
+
+        {/* Popular cities */}
+        {!loading && cities.length > 0 && (
+          <div className="reveal-up mt-24">
+            <div className="text-center mb-8">
+              <span className="text-[11px] tracking-[0.25em] uppercase text-pink-400/70 font-medium">
+                Already spilling
+              </span>
+              <h2
+                className="italic text-3xl mt-3 text-neutral-100"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                Popular cities right now
+              </h2>
+            </div>
+            <div className="flex flex-wrap justify-center gap-2.5">
+              {cities.slice(0, 12).map((city) => (
+                <button
+                  key={city.id}
+                  onClick={() =>
+                    router.push(`/${city.name.toLowerCase().replace(/\s+/g, "-")}`)
+                  }
+                  className="text-sm text-neutral-300 border border-white/10 hover:border-pink-500/30 hover:text-pink-400 hover:bg-pink-500/[0.06] transition-colors rounded-full px-4 py-2"
+                >
+                  {city.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* FAQ */}
+        <div className="reveal-up mt-24">
+          <div className="text-center mb-10">
+            <span className="text-[11px] tracking-[0.25em] uppercase text-pink-400/70 font-medium">
+              Before you post
+            </span>
+            <h2
+              className="italic text-3xl mt-3 text-neutral-100"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              Questions people actually ask
+            </h2>
+          </div>
+          <div className="max-w-2xl mx-auto flex flex-col divide-y divide-white/[0.06] border-y border-white/[0.06]">
+            {[
+              {
+                q: "Is it really anonymous?",
+                a: "Yes. There's no account, no email, and no name attached to a confession. We don't display anything that could identify you.",
+              },
+              {
+                q: "Can a confession be deleted?",
+                a: "If something violates the guidelines it's removed. We're working on a self-serve delete flow for a future version.",
+              },
+              {
+                q: "My city isn't listed — what now?",
+                a: "New cities are added regularly based on demand. If enough people search for yours, it gets added.",
+              },
+              {
+                q: "Is this moderated?",
+                a: "Basic moderation is in place for MVP v1. A full reporting and review flow is planned for the next release.",
+              },
+            ].map((item, i) => (
+              <div key={i} className="py-5">
+                <p className="text-white font-medium text-sm">{item.q}</p>
+                <p className="text-neutral-500 text-sm mt-2 leading-relaxed">{item.a}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Closing CTA strip */}
+        <div className="reveal-up mt-24 rounded-3xl border border-pink-500/15 bg-gradient-to-b from-pink-500/[0.06] to-transparent p-10 text-center flex flex-col items-center">
+          <h3
+            className="italic text-3xl sm:text-4xl text-neutral-100"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Somewhere, your city is already talking.
+          </h3>
+          <p className="text-neutral-500 text-sm mt-3 max-w-sm">
+            Find it above, or scroll back up and search your zip. No sign-up,
+            no waiting room — just the truth, unfiltered.
+          </p>
         </div>
       </div>
 
       {/* Footer */}
-      <footer className="relative z-10 w-full border-t border-neutral-900 px-6 py-8">
-        <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex flex-col items-center md:items-start gap-1">
-            <span className="text-white font-bold text-lg">
-              Confess<span className="text-pink-500">It</span>Up
-            </span>
-            <span className="text-neutral-600 text-xs">
-              Secrets your city never said out loud.
-            </span>
-          </div>
-          <div className="flex items-center gap-6">
-            <span className="text-neutral-600 text-xs hover:text-neutral-400 cursor-pointer transition-colors">
-              Privacy
-            </span>
-            <span className="text-neutral-600 text-xs hover:text-neutral-400 cursor-pointer transition-colors">
-              Terms
-            </span>
-            <span className="text-neutral-600 text-xs hover:text-neutral-400 cursor-pointer transition-colors">
-              Contact
+      <footer className="relative z-10 w-full border-t border-white/[0.06] px-4 py-4">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs">
+          <span className="text-neutral-500">
+            Confess<span className="text-pink-500">It</span>Up · Secrets your city never said out loud.
+          </span>
+          <div className="flex items-center gap-4 text-neutral-600">
+            <span className="hover:text-neutral-300 cursor-pointer transition-colors">Privacy</span>
+            <span className="hover:text-neutral-300 cursor-pointer transition-colors">Terms</span>
+            <span className="hover:text-neutral-300 cursor-pointer transition-colors">Contact</span>
+            <span className="text-neutral-700">
+              made by <span className="text-pink-500/80">FrenzyDev</span>
             </span>
           </div>
-          <p className="text-neutral-700 text-xs">
-            made with <span className="text-pink-500">♥</span> by FrenzyDev
-          </p>
         </div>
       </footer>
+
+      {/* Ticker + hover keyframes — plain <style> so no extra Tailwind config is needed */}
+      <style jsx>{`
+        .ticker-mask {
+          -webkit-mask-image: linear-gradient(
+            90deg,
+            transparent 0%,
+            black 8%,
+            black 92%,
+            transparent 100%
+          );
+          mask-image: linear-gradient(
+            90deg,
+            transparent 0%,
+            black 8%,
+            black 92%,
+            transparent 100%
+          );
+        }
+        .ticker-track {
+          animation: ticker-scroll 34s linear infinite;
+        }
+        .ticker-mask:hover .ticker-track {
+          animation-play-state: paused;
+        }
+        @keyframes ticker-scroll {
+          from {
+            transform: translateX(0);
+          }
+          to {
+            transform: translateX(-50%);
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .ticker-track {
+            animation: none;
+          }
+        }
+      `}</style>
     </main>
   );
 }
