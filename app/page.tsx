@@ -20,7 +20,12 @@ import {
   PushPin,
   ArrowRight,
   Sparkle,
+  MapPin,
+  Buildings,
+  House,
+  GraduationCap,
 } from "@phosphor-icons/react";
+import RequestAreaSection from "@/components/RequestAreaSection";
 
 const display = Instrument_Serif({
   subsets: ["latin"],
@@ -239,7 +244,7 @@ export default function Page() {
       <div className="relative z-10 flex flex-col items-center w-full min-h-screen justify-center max-w-2xl pt-24 pb-10">
         <span className="hero-eyebrow inline-flex items-center gap-2 text-[11px] tracking-[0.25em] uppercase text-pink-400/70 font-medium mb-5 border border-pink-500/15 bg-pink-500/[0.06] rounded-full px-3.5 py-1.5">
           <Sparkle weight="fill" size={11} />
-          A confession booth, for your city
+          A confession booth, for wherever you're from
           <span className="text-neutral-500 border-l border-pink-500/20 pl-2 ml-0.5 tracking-normal normal-case">
             MVP v1
           </span>
@@ -258,29 +263,48 @@ export default function Page() {
 
         <p className="hero-sub text-neutral-400 mt-5 text-lg text-center max-w-md">
           The things your neighbours would never say to your face —
-          <span className="text-neutral-200"> sorted by zip code, not by name.</span>
+          <span className="text-neutral-200"> sorted by where you live, not by who you are.</span>
         </p>
+
+        {/* Area-type chips — makes the "not just cities" idea visible in one glance */}
+        <div className="hero-sub flex flex-wrap items-center justify-center gap-2 mt-6">
+          {[
+            { label: "City", icon: MapPin },
+            { label: "Society", icon: Buildings },
+            { label: "Street", icon: MapPinLine },
+            { label: "Home", icon: House },
+            { label: "College", icon: GraduationCap },
+          ].map(({ label, icon: Icon }) => (
+            <span
+              key={label}
+              className="flex items-center gap-1.5 text-xs text-neutral-400 bg-white/[0.03] border border-white/[0.08] rounded-full px-3 py-1.5"
+            >
+              <Icon weight="fill" size={13} className="text-pink-400/80" />
+              {label}
+            </span>
+          ))}
+        </div>
 
         {/* Command Search */}
         <div className="hero-search w-full max-w-md mt-10">
           <Command className="rounded-2xl border border-white/10 bg-neutral-950/80 shadow-[0_30px_60px_-20px_rgba(236,72,153,0.15)] backdrop-blur-md">
             <CommandInput
-              placeholder="Find your city — e.g. Austin, Toronto, Manila…"
+              placeholder="Find your area — city, society, street, college…"
               className="text-white placeholder:text-neutral-500 text-base py-3"
             />
             <CommandList className="bg-transparent">
               {loading && (
                 <CommandEmpty className="text-neutral-500">
-                  Loading cities…
+                  Loading areas…
                 </CommandEmpty>
               )}
               {!loading && cities.length === 0 && (
                 <CommandEmpty className="text-neutral-500">
-                  No city found.
+                  No area found.
                 </CommandEmpty>
               )}
               <CommandGroup
-                heading="Cities"
+                heading="Areas"
                 className="text-neutral-500 text-xs uppercase tracking-widest"
               >
                 {cities.map((city) => (
@@ -346,10 +370,11 @@ export default function Page() {
               <MapPinLine weight="duotone" size={24} />
             </div>
             <div>
-              <h3 className="text-white font-semibold text-lg">Rooted in your city</h3>
+              <h3 className="text-white font-semibold text-lg">Rooted in your area</h3>
               <p className="text-neutral-500 text-sm mt-2.5 leading-relaxed">
-                Every city keeps its own secrets. Search yours and see what's
-                really happening behind closed doors nearby.
+                City, society, street, or campus — every area keeps its own
+                secrets. Search yours and see what's really happening close
+                to home.
               </p>
             </div>
           </div>
@@ -378,7 +403,7 @@ export default function Page() {
               className="italic text-3xl mt-3 text-neutral-100"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              From your feed to your city, in seconds.
+              From your feed to your area, in seconds.
             </h2>
           </div>
 
@@ -386,8 +411,8 @@ export default function Page() {
             {[
               {
                 step: "01",
-                title: "Find your city",
-                body: "Search the command bar above. If it's not listed yet, more cities are added every week.",
+                title: "Find your area",
+                body: "Search the command bar above — city, society, street, or campus. If it's not listed yet, request it and more areas get added every week.",
               },
               {
                 step: "02",
@@ -448,7 +473,7 @@ export default function Page() {
                 className="italic text-3xl mt-3 text-neutral-100"
                 style={{ fontFamily: "var(--font-display)" }}
               >
-                Popular cities right now
+                Popular areas right now
               </h2>
             </div>
             <div className="flex flex-wrap justify-center gap-2.5">
@@ -481,30 +506,51 @@ export default function Page() {
             </h2>
           </div>
           <div className="max-w-2xl mx-auto flex flex-col divide-y divide-white/[0.06] border-y border-white/[0.06]">
-            {[
-              {
-                q: "Is it really anonymous?",
-                a: "Yes. There's no account, no email, and no name attached to a confession. We don't display anything that could identify you.",
-              },
-              {
-                q: "Can a confession be deleted?",
-                a: "If something violates the guidelines it's removed. We're working on a self-serve delete flow for a future version.",
-              },
-              {
-                q: "My city isn't listed — what now?",
-                a: "New cities are added regularly based on demand. If enough people search for yours, it gets added.",
-              },
-              {
-                q: "Is this moderated?",
-                a: "Basic moderation is in place for MVP v1. A full reporting and review flow is planned for the next release.",
-              },
-            ].map((item, i) => (
+            {(
+              [
+                {
+                  q: "Is it really anonymous?",
+                  a: "Yes. There's no account, no email, and no name attached to a confession. We don't display anything that could identify you.",
+                },
+                {
+                  q: "Can a confession be deleted?",
+                  a: "If something violates the guidelines it's removed. We're working on a self-serve delete flow for a future version.",
+                },
+                {
+                  q: "My area isn't listed — what now?",
+                  a: "New areas — cities, societies, streets, colleges, whatever it is — get added regularly based on demand.",
+                  link: { href: "#request-area", label: "Request yours below →" },
+                },
+                {
+                  q: "Is this moderated?",
+                  a: "Basic moderation is in place for MVP v1. A full reporting and review flow is planned for the next release.",
+                },
+              ] as { q: string; a: string; link?: { href: string; label: string } }[]
+            ).map((item, i) => (
               <div key={i} className="py-5">
                 <p className="text-white font-medium text-sm">{item.q}</p>
-                <p className="text-neutral-500 text-sm mt-2 leading-relaxed">{item.a}</p>
+                <p className="text-neutral-500 text-sm mt-2 leading-relaxed">
+                  {item.a}
+                  {item.link && (
+                    <>
+                      {" "}
+                      <a
+                        href={item.link.href}
+                        className="text-pink-400 hover:text-pink-300 transition-colors"
+                      >
+                        {item.link.label}
+                      </a>
+                    </>
+                  )}
+                </p>
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Request your area */}
+        <div id="request-area" className="reveal-up scroll-mt-24">
+          <RequestAreaSection />
         </div>
 
         {/* Closing CTA strip */}
@@ -513,10 +559,10 @@ export default function Page() {
             className="italic text-3xl sm:text-4xl text-neutral-100"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            Somewhere, your city is already talking.
+            Somewhere, your area is already talking.
           </h3>
           <p className="text-neutral-500 text-sm mt-3 max-w-sm">
-            Find it above, or scroll back up and search your zip. No sign-up,
+            Find it above, or request it if it's not there yet. No sign-up,
             no waiting room — just the truth, unfiltered.
           </p>
         </div>
@@ -526,7 +572,7 @@ export default function Page() {
       <footer className="relative z-10 w-full border-t border-white/[0.06] px-4 py-4">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs">
           <span className="text-neutral-500">
-            Confess<span className="text-pink-500">It</span>Up · Secrets your city never said out loud.
+            Confess<span className="text-pink-500">It</span>Up · Secrets your area never said out loud.
           </span>
           <div className="flex items-center gap-4 text-neutral-600">
             <span className="hover:text-neutral-300 cursor-pointer transition-colors">Privacy</span>

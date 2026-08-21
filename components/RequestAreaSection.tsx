@@ -16,7 +16,7 @@ const display = Instrument_Serif({
 // 1. Go to https://formspree.io, create a free account + a new form.
 // 2. Copy the endpoint it gives you (looks like https://formspree.io/f/xxxxxxx)
 //    and paste it below. Every submission lands straight in your inbox.
-const FORMSPREE_ENDPOINT = "https://formspree.io/f/YOUR_FORM_ID";
+const FORMSPREE_ENDPOINT = "https://formspree.io/f/xvkpldne";
 
 export default function RequestAreaSection() {
   const [name, setName] = useState("");
