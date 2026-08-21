@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="/icon.png" alt="ConfessItUp" width="120" height="120" />
+<img src="public/icon.png" alt="ConfessItUp" width="120" height="120" />
 
-# ConfessItUp 💌
+# ConfessItUp 
 
 **Anonymous confessions, hyper-local to wherever you are.**
 
