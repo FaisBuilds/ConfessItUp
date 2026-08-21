@@ -143,7 +143,7 @@ export default function CityPage() {
           className="flex items-center gap-2 text-neutral-500 hover:text-pink-400 transition-colors mb-8 text-sm"
         >
           <ArrowLeft weight="bold" size={14} />
-          Back to cities
+          Back to all locations
         </button>
 
         {/* Header */}
@@ -159,7 +159,7 @@ export default function CityPage() {
               {displayCity}
             </h1>
             <p className="text-neutral-500 text-sm mt-1">
-              Anonymous confessions from your city
+              Anonymous confessions from your area
             </p>
           </div>
           <Dialog
