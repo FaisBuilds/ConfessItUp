@@ -578,9 +578,6 @@ export default function Page() {
             <span className="hover:text-neutral-300 cursor-pointer transition-colors">Privacy</span>
             <span className="hover:text-neutral-300 cursor-pointer transition-colors">Terms</span>
             <span className="hover:text-neutral-300 cursor-pointer transition-colors">Contact</span>
-            <span className="text-neutral-700">
-              made by <span className="text-pink-500/80">FrenzyDev</span>
-            </span>
           </div>
         </div>
       </footer>
